@@ -7,6 +7,7 @@
 
 | № | Тема | Задача варианта 19 | Папка | Отдельный репозиторий |
 |---|------|--------------------|-------|-----------------------|
+| 1 | Структурный и ООП подходы | Голосование | [lab1](lab1) | [lab1-structural-oop](https://github.com/qqZeR002/lab1-structural-oop) |
 | 2 | Scrum, Kanban, XP | Трекер багов для небольшой студии | [lab2](lab2) | [lab2-scrum-kanban-xp](https://github.com/qqZeR002/lab2-scrum-kanban-xp) |
 | 3 | Юнит-тесты и покрытие | Голосование | [lab3](lab3) | [lab3-unit-tests-coverage](https://github.com/qqZeR002/lab3-unit-tests-coverage) |
 | 4 | Юнит-тесты и BDD | Оценка сложности задачи (story points) | [lab4](lab4) | [lab4-unit-bdd](https://github.com/qqZeR002/lab4-unit-bdd) |
