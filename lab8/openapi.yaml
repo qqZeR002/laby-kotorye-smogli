@@ -1,0 +1,239 @@
+openapi: 3.0.3
+info:
+  title: Трекер багов небольшой студии
+  description: |
+    API для учёта дефектов в играх студии.
+    Баг (issue) можно завести, изменить, удалить, найти по фильтрам и перевести в другой статус.
+  version: 1.0.0
+servers:
+  - url: http://localhost:8000
+    description: Локальный запуск stub-сервера
+tags:
+  - name: issues
+    description: Баги
+paths:
+  /issues:
+    get:
+      tags: [issues]
+      summary: Список багов
+      description: Возвращает все баги. Фильтры можно совмещать, тогда условия объединяются через «и».
+      operationId: listIssues
+      parameters:
+        - name: priority
+          in: query
+          description: Оставить только баги с этим приоритетом
+          schema:
+            $ref: "#/components/schemas/Priority"
+        - name: status
+          in: query
+          description: Оставить только баги с этим статусом
+          schema:
+            $ref: "#/components/schemas/Status"
+      responses:
+        "200":
+          description: Список багов (может быть пустым)
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Issue"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+    post:
+      tags: [issues]
+      summary: Завести баг
+      description: Новый баг всегда получает статус `open`.
+      operationId: createIssue
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/IssueCreate"
+            example:
+              title: Игра вылетает при открытии магазина
+              description: Android 14, версия 1.4.2. Вылет после нажатия на иконку магазина.
+              priority: critical
+              assignee: igor
+      responses:
+        "201":
+          description: Баг создан
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Issue"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+  /issues/{issueId}:
+    parameters:
+      - $ref: "#/components/parameters/IssueId"
+    get:
+      tags: [issues]
+      summary: Получить один баг
+      operationId: getIssue
+      responses:
+        "200":
+          description: Баг найден
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Issue"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    put:
+      tags: [issues]
+      summary: Изменить баг
+      description: Меняет заголовок, описание, приоритет и исполнителя. Статус здесь не меняется, для него есть отдельная операция.
+      operationId: updateIssue
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/IssueCreate"
+      responses:
+        "200":
+          description: Баг изменён
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Issue"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    delete:
+      tags: [issues]
+      summary: Удалить баг
+      description: Нужно для багов, заведённых по ошибке (дубли). Обычные баги не удаляют, а закрывают.
+      operationId: deleteIssue
+      responses:
+        "204":
+          description: Баг удалён, тела ответа нет
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /issues/{issueId}/status:
+    parameters:
+      - $ref: "#/components/parameters/IssueId"
+    patch:
+      tags: [issues]
+      summary: Сменить статус бага
+      description: |
+        Разрешены только переходы по схеме:
+        `open → in_progress → fixed → verified → closed`,
+        а также возврат `fixed → in_progress`, если исправление не прошло проверку.
+      operationId: changeIssueStatus
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StatusChange"
+            example:
+              status: in_progress
+      responses:
+        "200":
+          description: Статус изменён
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Issue"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: Такой переход статуса запрещён
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                error: нельзя перейти из open в closed
+components:
+  parameters:
+    IssueId:
+      name: issueId
+      in: path
+      required: true
+      description: Номер бага
+      schema:
+        type: integer
+        minimum: 1
+  responses:
+    BadRequest:
+      description: Ошибка в запросе (нет обязательного поля или недопустимое значение)
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+          example:
+            error: поле title обязательно
+    NotFound:
+      description: Бага с таким номером нет
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+          example:
+            error: баг не найден
+  schemas:
+    Priority:
+      type: string
+      enum: [critical, high, medium, low]
+      description: Приоритет бага
+    Status:
+      type: string
+      enum: [open, in_progress, fixed, verified, closed]
+      description: Статус бага
+    IssueCreate:
+      type: object
+      required: [title]
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+          description: Короткий заголовок
+        description:
+          type: string
+          default: ""
+          description: Шаги воспроизведения, версия игры, устройство
+        priority:
+          allOf:
+            - $ref: "#/components/schemas/Priority"
+          default: medium
+        assignee:
+          type: string
+          nullable: true
+          description: Логин исполнителя, может быть пустым
+    Issue:
+      allOf:
+        - $ref: "#/components/schemas/IssueCreate"
+        - type: object
+          required: [id, status, created_at, updated_at]
+          properties:
+            id:
+              type: integer
+              example: 1
+            status:
+              $ref: "#/components/schemas/Status"
+            created_at:
+              type: string
+              format: date-time
+            updated_at:
+              type: string
+              format: date-time
+    StatusChange:
+      type: object
+      required: [status]
+      properties:
+        status:
+          $ref: "#/components/schemas/Status"
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
